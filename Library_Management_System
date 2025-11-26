@@ -1,0 +1,392 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Reflection.Metadata.Ecma335;
+
+
+namespace Library_management_system
+{
+    public class Book
+    {
+        public int Id { get; }
+        public string Title { get; set; }
+        public string Author { get; set; }
+        public bool IsAvailable { get; set; }
+        public string username { get; set; }
+
+        public Book(int id, string title, string author)
+        {
+            Id = id;
+            Title = title;
+            Author = author;
+            IsAvailable = true;
+        }
+
+        public Book(int id, string title, string author, bool isAvailable, string username)
+        {
+            Id = id;
+            Title = title;
+            Author = author;
+            IsAvailable = isAvailable;
+            this.username = username;
+        }
+
+        public void DisplayBook()
+        {
+            Console.WriteLine($"{Id} | {Title} | {Author} | {(IsAvailable ? "Available" : "Issued")}");
+        }
+    }
+
+    public class Library
+    {
+        private const string BooksFolder = "C:\\Demo project\\Library_Management_System\\Library\\Books\\";
+        private List<Book> books = new List<Book>();
+        private const string Backupfolder = "C:\\Demo project\\Library_Management_System\\Library\\Books\\Backup_Books\\";
+
+        public Library()
+        {
+            Directory.CreateDirectory(BooksFolder);
+            LoadBooksFromFiles();
+        }
+
+        private void Log(string message)
+        {
+            string Logfolder = "C:\\Demo project\\Library_Management_System\\Library\\Log Entry\\Log.txt";
+            string logMsg = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} - {message}\n";
+            File.AppendAllText(Logfolder, logMsg);
+        }
+
+        private void LoadBooksFromFiles()
+        {
+            string username = "Sarthak";
+            books.Clear();
+
+            foreach (string file in Directory.GetFiles(BooksFolder, "*.txt"))
+            {
+                if (file.EndsWith("log.txt")) continue;
+
+                string[] lines = File.ReadAllLines(file);
+                if (lines.Length < 4) continue;
+
+                int id = int.Parse(lines[0]);
+                string title = lines[1];
+                string author = lines[2];
+                bool isAvailable = bool.Parse(lines[3]);
+
+                books.Add(new Book(id, title, author, isAvailable,username));
+            }
+        }
+
+        private void SaveBookToFile(Book b)
+        {
+            string path = Path.Combine(BooksFolder, $"{b.Id}_{b.Title}.txt");
+
+            File.WriteAllLines(path, new string[]
+            {
+                b.Id.ToString(),
+                b.Title,
+                b.Author,
+                b.IsAvailable.ToString(),
+                b.username.ToString()
+            });
+        }
+
+        protected void AddBook(Book book)
+        {
+            if (books.Exists(b => b.Id == book.Id))
+            {
+                Console.WriteLine("Book Addition Failed! Same ID exists.");
+                Log($"Failed to add book. Duplicate ID: {book.Id}");
+                return;
+            }
+
+            books.Add(book);
+            SaveBookToFile(book);
+            Console.WriteLine("Book added successfully!");
+
+            Log($"Added book: {book.Id} | {book.Title}");
+        }
+
+        protected void ShowBooks()
+        {
+            LoadBooksFromFiles();
+
+            if (books.Count == 0)
+            {
+                Console.WriteLine("No books available.");
+                return;
+            }
+
+            foreach (var b in books)
+                b.DisplayBook();
+
+            Log("Viewed all books.");
+        }
+
+        protected void SearchBook(string title)
+
+        {
+            bool found = false;
+
+            foreach (var b in books)
+            {
+                if (b.Title.ToLower().Contains(title.ToLower()))
+                {
+                    b.DisplayBook();
+                    found = true;
+                    Log($"Searched & found book: {b.Title}");
+                    break;
+                }
+            }
+
+            if (!found)
+            {
+                Console.WriteLine("Book not found!");
+                Log($"Search failed. Title not found: {title}");
+            }
+        }
+
+        protected void SortBooks()
+        {
+            if (books.Count == 0)
+            {
+                Console.WriteLine("No books available to sort.");
+                return;
+            }
+
+            books.Sort((a, b) => a.Title.CompareTo(b.Title));
+
+            Console.WriteLine("\nBooks sorted by title:");
+            foreach (var b in books)
+                Console.WriteLine(b.Title);
+
+            Log("Sorted books by title.");
+        }
+
+        protected void BorrowBook(int id)
+        {
+            Book book = books.Find(b => b.Id == id);
+
+            if (book == null)
+            {
+                Console.WriteLine("Invalid Book ID!");
+                Log($"Borrow failed. Invalid ID: {id}");
+                return;
+            }
+
+            if (!book.IsAvailable)
+            {
+                Console.WriteLine("Book already issued!");
+                Log($"Borrow failed. Already issued: {book.Id} | {book.Title}");
+                return;
+            }
+
+            book.IsAvailable = false;
+            SaveBookToFile(book);
+
+            Console.WriteLine("Book issued successfully!");
+            Log($"Borrowed book: {book.Id} | {book.Title}");
+        }
+        protected void ReturnBook(int id)
+        {
+            Book book = books.Find(b => b.Id == id);
+
+            if (book == null)
+            {
+                Console.WriteLine("Invalid Book ID!");
+                Log($"Return failed. Invalid ID: {id}");
+                return;
+            }
+
+            if (book.IsAvailable)
+            {
+                Console.WriteLine("Book was not issued!");
+                Log($"Return failed. Book not issued: {book.Id} | {book.Title}");
+                return;
+            }
+
+            book.IsAvailable = true;
+            SaveBookToFile(book);
+
+            Console.WriteLine("Book returned successfully!");
+            Log($"Returned book: {book.Id} | {book.Title}");
+        }
+
+
+        protected void UpdateBook(int id)
+        {
+            Book book = books.Find(b => b.Id == id);
+
+            if (book == null)
+            {
+                Console.WriteLine("Book not found!");
+                Log($"Update failed. Invalid ID: {id}");
+                return;
+            }
+
+            Console.Write("New Title: ");
+            string newTitle = Console.ReadLine();
+
+            Console.Write("New Author: ");
+            string newAuthor = Console.ReadLine();
+
+            string oldTitle = book.Title;
+
+            book.Title = newTitle;
+            book.Author = newAuthor;
+
+            foreach (var file in Directory.GetFiles(BooksFolder))
+            {
+                if (file.Contains($"{book.Id}_"))
+                {
+                    File.Delete(file);
+                    break;
+                }
+            }
+
+            SaveBookToFile(book);
+
+            Console.WriteLine("Book updated successfully!");
+            Log($"Updated book: {book.Id} | {oldTitle} -> {newTitle}");
+        }
+
+        protected void DeleteBook(int id)
+        {
+            Book b = books.Find(x => x.Id == id);
+
+            if (b == null)
+            {
+                Console.WriteLine("Book not found!");
+                Log($"Delete failed. Invalid ID: {id}");
+                return;
+            }
+
+            foreach (var file in Directory.GetFiles(BooksFolder))
+            {
+                if (file.Contains($"{b.Id}_"))
+                {
+                    string path = Path.Combine(Backupfolder, $"{b.Id}_{b.Title}.txt");
+                    File.Copy(file, path);
+                    File.Delete(file);
+                    break;
+                }
+            }
+
+            books.Remove(b);
+            Console.WriteLine("Book deleted successfully!");
+
+            Log($"Deleted book: {b.Id} | {b.Title}");
+        }
+
+        protected void DeleteAllBooks()
+        {
+            Console.WriteLine("Are you sure to delete all files :\n YES or NO");
+            string decide = Console.ReadLine();
+            if (decide == "yes")
+            {
+                foreach (var file in Directory.GetFiles(BooksFolder))
+                    File.Delete(file);
+
+                books.Clear();
+
+                Console.WriteLine("All books deleted successfully!");
+                Log("Deleted ALL books.");
+            }
+            else
+            {
+                return;
+            }
+        }
+    }
+
+    public class Program : Library
+    {
+        static void Main()
+        {
+            Program p = new Program();
+            int choice;
+
+            while (true)
+            {
+                Console.WriteLine("\n===== SMART LIBRARY SYSTEM =====");
+                Console.WriteLine("1. Add Book");
+                Console.WriteLine("2. Show All Books");
+                Console.WriteLine("3. Search Book");
+                Console.WriteLine("4. Sort Books");
+                Console.WriteLine("5. Borrow Book");
+                Console.WriteLine("6. Return Book");
+                Console.WriteLine("7. Update Book");
+                Console.WriteLine("8. Delete Book");
+                Console.WriteLine("9. Delete All Books");
+                Console.WriteLine("10. Exit");
+                Console.Write("Enter choice: ");
+
+                if (!int.TryParse(Console.ReadLine(), out choice))
+                {
+                    Console.WriteLine("Enter numbers only!");
+                    continue;
+                }
+
+                switch (choice)
+                {
+                    case 1:
+                        Console.Write("Enter ID: ");
+                        int id = int.Parse(Console.ReadLine());
+
+                        Console.Write("Enter Title: ");
+                        string title = Console.ReadLine();
+
+                        Console.Write("Enter Author: ");
+                        string author = Console.ReadLine();
+
+                        p.AddBook(new Book(id, title, author));
+                        break;
+
+                    case 2:
+                        p.ShowBooks();
+                        break;
+
+                    case 3:
+                        Console.Write("Enter title: ");
+                        p.SearchBook(Console.ReadLine());
+                        break;
+
+                    case 4:
+                        p.SortBooks();
+                        break;
+
+                    case 5:
+                        Console.Write("Enter Book ID: ");
+                        p.BorrowBook(int.Parse(Console.ReadLine()));
+                        break;
+
+                    case 6:
+                        Console.Write("Enter Book ID: ");
+                        p.ReturnBook(int.Parse(Console.ReadLine()));
+                        break;
+
+                    case 7:
+                        Console.Write("Enter Book ID: ");
+                        p.UpdateBook(int.Parse(Console.ReadLine()));
+                        break;
+
+                    case 8:
+                        Console.Write("Enter Book ID: ");
+                        p.DeleteBook(int.Parse(Console.ReadLine()));
+                        break;
+
+                    case 9:
+                        p.DeleteAllBooks();
+                        break;
+
+                    case 10:
+                        return;
+
+                    default:
+                        Console.WriteLine("Invalid choice!");
+                        break;
+                }
+            }
+        }
+    }
+}
