@@ -1,0 +1,126 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+
+class Task
+{
+    static string filePath = "C:\\Demo project\\To_Do_List\\Tasks\\Task.txt";
+    protected void LoadFile()
+    {
+        if (!File.Exists(filePath))
+        {
+            File.Create(filePath).Close();
+        }
+    }
+
+    protected void AddTask()
+    {
+        Console.Write("Enter task: ");
+        string task = Console.ReadLine();
+
+        int id = File.ReadAllLines(filePath).Length + 1;
+
+        using (StreamWriter sw = File.AppendText(filePath))
+        {
+            sw.WriteLine($"{id}|{task}|Pending");
+        }
+
+        Console.WriteLine("Task added!");
+        WriteLog($"Task Added {id}");
+    }
+
+    protected void ViewTasks()
+    {
+        Console.WriteLine("\nID | Task | Status");
+        Console.WriteLine("----------------------");
+
+        string[] lines = File.ReadAllLines(filePath);
+
+        foreach (var line in lines)
+        {
+            string[] parts = line.Split('|');
+            Console.WriteLine($"{parts[0]} | {parts[1]} | {parts[2]}");
+        }
+        WriteLog("All Task Viewed");
+    }
+
+    protected void MarkCompleted()
+    {
+        Console.Write("Enter task ID to mark completed: ");
+        int id = int.Parse(Console.ReadLine());
+
+        List<string> lines = new List<string>(File.ReadAllLines(filePath));
+
+        for (int i = 0; i < lines.Count; i++)
+        {
+            string[] p = lines[i].Split('|');
+
+            if (int.Parse(p[0]) == id)
+            {
+                lines[i] = $"{p[0]}|{p[1]}|Completed";
+            }
+        }
+
+        File.WriteAllLines(filePath, lines);
+        Console.WriteLine("Task marked completed!");
+        WriteLog($"{id} marked Completed");
+    }
+
+    protected void DeleteTask()
+    {
+        Console.Write("Enter ID to delete: ");
+        int id = int.Parse(Console.ReadLine());
+
+        List<string> lines = new List<string>(File.ReadAllLines(filePath));
+
+        lines.RemoveAll(line => int.Parse(line.Split('|')[0]) == id);
+
+        File.WriteAllLines(filePath, lines);
+
+        Console.WriteLine("Task deleted!");
+        WriteLog($"{id} task is Deleted ");
+
+    }
+
+    protected void WriteLog(string message)
+    {
+        string path = "C:\\Demo project\\To_Do_List\\Logs\\Log.txt";
+        File.AppendAllText(path, $"{DateTime.Now} - {message}\n");
+    }
+}
+
+class ToDoList : Task
+{
+  
+
+    public static void Main()
+    {
+        ToDoList td = new ToDoList();
+        td.LoadFile();
+
+        while (true)
+        {
+            Console.WriteLine("\n===== TO-DO LIST =====");
+            Console.WriteLine("1. Add Task");
+            Console.WriteLine("2. View Tasks");
+            Console.WriteLine("3. Mark Completed");
+            Console.WriteLine("4. Delete Task");
+            Console.WriteLine("5. Exit");
+
+            Console.Write("Enter choice: ");
+            string input = Console.ReadLine();
+
+            switch (input)
+            {
+                case "1": td.AddTask(); break;
+                case "2": td.ViewTasks(); break;
+                case "3": td.MarkCompleted(); break;
+                case "4": td.DeleteTask(); break;
+                case "5": return;
+                default: Console.WriteLine("Invalid choice."); break;
+            }
+        }
+    }
+
+    
+}
