@@ -1,0 +1,437 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.IO;
+using System.Xml.Linq;
+using TaskManagementSystem;
+
+namespace TaskManagementSystem
+{
+    class TaskItem
+    {
+        private int ID { get; set; }
+        private string Name { get; set; }
+        // getter and setter
+        public int id {
+            get
+            {
+                return ID;
+            }
+            set
+            {
+                ID = value;
+            }
+                 }
+        public string name {
+            get { return Name; }
+            set {  Name = value; }
+                }
+
+        public TaskItem(int id, string name)
+        {
+            ID = id;
+            Name = name;
+        }
+    }
+
+    class TaskManager
+    {
+        private List<TaskItem> allTasks = new List<TaskItem>();
+        private ArrayList logs = new ArrayList();
+        private Stack<string> undoStack = new Stack<string>();
+        private Queue<TaskItem> pendingTasks = new Queue<TaskItem>();
+        private LinkedList<TaskItem> priorityTasks = new LinkedList<TaskItem>();
+        private Hashtable taskTable = new Hashtable();
+        private Dictionary<int, string> taskStatus = new Dictionary<int, string>();
+
+        private readonly string logFilePath = @"C:\Demo project\Task_Scheduler_and_Manager\Logs\Log.Txt";
+        private readonly string TaskFilePath = @"C:\\Demo project\\Task_Scheduler_and_Manager\\Tasks\\Task.txt";
+
+        protected void SaveAllTasks()
+        {
+            List<string> lines = new List<string>();
+                foreach (var task in allTasks)
+                {
+                    string status = taskStatus.ContainsKey(task.id) ? taskStatus[task.id] : "Unknown";
+                    lines.Add($"{task.id}|{task.name}|{status}");                
+                }
+            File.WriteAllLines(TaskFilePath, lines);
+        }
+
+        protected void LoadAllTasks()
+        {
+            if (!File.Exists(TaskFilePath))
+                return;
+
+            string[] lines = File.ReadAllLines(TaskFilePath);
+
+            foreach (string line in lines)
+            {
+                string[] parts = line.Split('|');
+                if (parts.Length != 3)
+                    continue;
+
+                int id = int.Parse(parts[0]);
+                string name = parts[1];
+                string status = parts[2];
+
+                TaskItem task = new TaskItem(id, name);
+
+                allTasks.Add(task);
+                taskTable[id] = task;
+                taskStatus[id] = status;
+
+                if (status == "Pending")
+                    pendingTasks.Enqueue(task);
+
+                if (status == "High Priority")
+                    priorityTasks.AddLast(task);
+            }
+        }
+
+        protected void AddTask()
+        {
+            Console.Write("Enter Task ID: ");
+            if (!int.TryParse(Console.ReadLine(), out int id))
+            {
+                Console.WriteLine("Please Enter only Numbers in Id : ");
+                return;
+            }
+
+            if (taskTable.ContainsKey(id))
+            {
+                Console.WriteLine("A task with same ID already exists. Please choose different id !!");
+                return;
+            }
+
+            Console.Write("Enter Task Name: ");
+            string name = Console.ReadLine();
+
+            TaskItem task = new TaskItem(id, name);
+
+            allTasks.Add(task);
+            pendingTasks.Enqueue(task);
+            taskTable[id] = task;
+            taskStatus[id] = "Pending";
+            WriteLogs($"Task Added: {id}");
+            undoStack.Push($"ADD:{id}");
+            SaveAllTasks();
+
+
+            Console.WriteLine("Task added successfully!");
+        }
+
+        protected void AddPriorityTask()
+        {
+            Console.Write("Enter Task ID: ");
+            if (!int.TryParse(Console.ReadLine(), out int id))
+            {
+                Console.WriteLine("Please Enter only Numbers in Id !!");
+                return;
+            }
+
+            if (taskTable.ContainsKey(id))
+            {
+                Console.WriteLine("A task with same ID already exists. Please choose different id !!");
+                return;
+            }
+
+            Console.Write("Enter Task Name: ");
+            string name = Console.ReadLine();
+
+            TaskItem task = new TaskItem(id, name);
+
+            priorityTasks.AddFirst(task);
+            allTasks.Add(task);
+            taskTable[id] = task;
+            taskStatus[id] = "High Priority";
+            WriteLogs($"Priority Task Added: {id}");
+            undoStack.Push($"PRIORITYADD:{id}");
+            SaveAllTasks();
+
+            Console.WriteLine("Priority task added!");
+        }
+
+        protected void CompleteTask()
+        {
+            Console.Write("Enter Task ID to mark complete: ");
+            if (!int.TryParse(Console.ReadLine(), out int id))
+            {
+                Console.WriteLine("Please Enter only Numbers in Id !!");
+                return;
+            }
+
+            if (!taskTable.ContainsKey(id))
+            {
+                Console.WriteLine("Task with this id is not exist!");
+                return;
+            }
+           
+            string previousStatus = taskStatus.ContainsKey(id) ? taskStatus[id] : "Pending";
+            taskStatus[id] = "Completed";
+            WriteLogs($"Task Completed: {id}");
+            undoStack.Push($"COMPLETE:{id}:{previousStatus}");
+            SaveAllTasks();
+
+            Console.WriteLine("Task marked as completed!");
+        }
+
+        protected void RemoveTask()
+        {
+            Console.WriteLine("Enter Id for Removing Task : ");
+            if (!int.TryParse(Console.ReadLine(), out int id))
+            {
+                Console.WriteLine("Invalid ID!");
+                return;
+            }
+
+            bool removed = RemoveTaskCompletely(id);
+
+            if (removed)
+            {
+                Console.WriteLine("Task removed Successfully!");
+                WriteLogs($"Task Removed: {id}");
+
+                SaveAllTasks();
+            }
+            else
+            {
+                Console.WriteLine("Task not found!");
+            }
+        }
+
+
+        protected void UndoLastOperation()
+        {
+            if (undoStack.Count == 0)
+            {
+                Console.WriteLine("No actions to undo!");
+                return;
+            }
+
+            string action = undoStack.Pop();
+            Console.WriteLine($"Undoing: {action}");
+            string[] parts = action.Split(':', 3, StringSplitOptions.None);
+            if (parts.Length >= 2)
+            {
+                string cmd = parts[0];
+                if (!int.TryParse(parts[1], out int id))
+                {
+                    Console.WriteLine("Undo failed: invalid id in undo record.");
+                    WriteLogs($"Undo Failed (invalid id): {action}");
+                    return;
+                }
+
+                switch (cmd)
+                {
+                    case "ADD":                        
+                        bool removed = RemoveTaskCompletely(id);
+                        if (removed)
+                        {
+                            WriteLogs($"Undo ADD: Removed task {id}");
+                            Console.WriteLine($"Undo successful: Added task {id} removed.");
+                        }
+                        else
+                        {
+                            WriteLogs($"Undo ADD failed: task {id} not found");
+                            Console.WriteLine("Undo failed: task not found.");
+                        }
+                        break;
+
+                    case "PRIORITYADD":
+                        bool r2 = RemoveTaskCompletely(id);
+                        if (r2)
+                        {
+                            WriteLogs($"Undo PRIORITYADD: Removed task {id}");
+                            Console.WriteLine($"Undo successful: Priority task {id} removed.");
+                        }
+                        else
+                        {
+                            WriteLogs($"Undo PRIORITYADD failed: task {id} not found");
+                            Console.WriteLine("Undo failed: task not found.");
+                        }
+                        break;
+
+                    case "COMPLETE":
+                        string prev = (parts.Length == 3) ? parts[2] : "Pending";
+                        if (taskTable.ContainsKey(id))
+                        {
+                            taskStatus[id] = prev;
+                            WriteLogs($"Undo COMPLETE: Restored task {id} status to {prev}");
+                            Console.WriteLine($"Undo successful: task {id} status restored to {prev}.");
+                            SaveAllTasks();
+
+                        }
+                        else
+                        {
+                            WriteLogs($"Undo COMPLETE failed: task {id} not found");
+                            Console.WriteLine("Undo failed: task not found.");
+                        }
+                        break;
+
+                    default:
+                        WriteLogs($"Unknown undo command: {action}");
+                        Console.WriteLine("Unknown undo action.");
+                        break;
+                }
+            }            
+        }
+
+        protected void ViewAllTasks()
+        {
+            SaveAllTasks();
+            File.ReadAllText(TaskFilePath);
+            Console.WriteLine("=== All Tasks ===");
+
+            foreach (TaskItem task in allTasks)
+            {
+                string status = taskStatus.ContainsKey(task.id) ? taskStatus[task.id] : "Unknown";
+                Console.WriteLine($"ID: {task.id} | Name: {task.name} | Status: {status}");
+            }
+
+
+            WriteLogs("Viewed All Tasks");
+        }
+
+        protected void SearchTask()
+        {
+            Console.Write("Enter Task ID to search: ");
+            if (!int.TryParse(Console.ReadLine(), out int id))
+            {
+                Console.WriteLine("Invalid ID!");
+                return;
+            }
+
+            if (!taskTable.ContainsKey(id))
+            {
+                Console.WriteLine("Task not found!");
+                return;
+            }
+
+            TaskItem task = (TaskItem)taskTable[id];
+            string status = taskStatus.ContainsKey(id) ? taskStatus[id] : "Unknown";
+            Console.WriteLine($"Task Found: {task.id} - {task.name} - Status: {status}");
+            WriteLogs($"Searched Task : {id}");
+        }
+
+        private bool RemoveTaskCompletely(int id)
+        {
+            if (!taskTable.ContainsKey(id))
+                return false;
+
+            taskTable.Remove(id);
+
+            
+            if (taskStatus.ContainsKey(id))
+                taskStatus.Remove(id);
+
+           
+            allTasks.RemoveAll(t => t.id == id);
+
+           
+            var node = priorityTasks.First;
+            while (node != null)
+            {
+                var next = node.Next;
+                if (node.Value.id == id)
+                    priorityTasks.Remove(node);
+                node = next;
+            }
+
+           
+            RemoveFromQueueById(id);
+
+           
+            return true;
+        }
+
+        private void RemoveFromQueueById(int id)
+        {
+            if (pendingTasks.Count == 0) return;
+
+            Queue<TaskItem> newQueue = new Queue<TaskItem>();
+            while (pendingTasks.Count > 0)
+            {
+                var t = pendingTasks.Dequeue();
+                if (t.id != id)
+                    newQueue.Enqueue(t);
+            }
+            while (newQueue.Count > 0)
+                pendingTasks.Enqueue(newQueue.Dequeue());
+        }
+
+        private void WriteLogs(string message)
+        {
+          
+                string directory = Path.GetDirectoryName(logFilePath);
+                if (!string.IsNullOrEmpty(directory))
+                    Directory.CreateDirectory(directory);
+
+                File.AppendAllText(logFilePath, $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} - {message}{Environment.NewLine}");
+                logs.Add($"{DateTime.Now:yyyy-MM-dd HH:mm:ss} - {message}");
+            }
+        }
+    }
+
+    class Program : TaskManager
+    {
+        static void Main(string[] args)
+        {
+          Program p = new Program();
+          p.LoadAllTasks();
+
+            while (true)
+            {
+                Console.WriteLine("\n=== TASK MANAGEMENT SYSTEM ===");
+                Console.WriteLine("1. Add Task");
+                Console.WriteLine("2. Add Priority Task");
+                Console.WriteLine("3. Complete Task");
+                Console.WriteLine("4. Undo Last Operation");
+                Console.WriteLine("5. View All Tasks");
+                Console.WriteLine("6. Search Task by ID");
+                Console.WriteLine("7. Remove Task");
+                Console.WriteLine("8. Exit");
+                Console.Write("Enter choice: ");
+
+                string input = Console.ReadLine();
+                Console.WriteLine();
+
+                switch (input)
+                {
+                    case "1": 
+                        p.AddTask();
+                         break;
+
+                    case "2": 
+                        p.AddPriorityTask();
+                        break;
+
+                    case "3":
+                        p.CompleteTask();
+                        break;
+
+                    case "4":
+                        p.UndoLastOperation();
+                        break;
+
+                    case "5": 
+                        p.ViewAllTasks();
+                        break;
+
+                    case "6":
+                        p.SearchTask();
+                        break;
+                    case "7":
+                        p.RemoveTask();
+                         break;
+
+                    case "8":
+                        return;
+
+                    default:
+                        Console.WriteLine("Invalid choice!");
+                        break;
+                }
+            }
+        }
+    }
