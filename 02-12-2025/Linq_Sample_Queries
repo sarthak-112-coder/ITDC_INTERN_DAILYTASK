@@ -1,0 +1,76 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+class Order
+{
+    public string CustomerName { get; set; }
+    public string Product { get; set; }
+    public int Amount { get; set; }
+}
+
+class Program
+{
+    static void Main()
+    {
+        List<Order> orders = new List<Order>()
+        {
+            new Order { CustomerName = "Amit", Product = "Laptop", Amount = 50000 },
+            new Order { CustomerName = "Amit", Product = "Mouse", Amount = 700 },
+            new Order { CustomerName = "Riya", Product = "Phone", Amount = 20000 },
+            new Order { CustomerName = "Riya", Product = "Earbuds", Amount = 1500 },
+            new Order { CustomerName = "Raj", Product = "Tablet", Amount = 12000 },
+        };
+        
+    var totalPerCustomer = orders
+    .GroupBy(o => o.CustomerName)
+    .Select(g => new { Customer = g.Key, TotalAmount = g.Sum(x => x.Amount) });
+
+Console.WriteLine("Total purchase amount of each customer:");
+foreach (var item in totalPerCustomer)
+{
+    Console.WriteLine($"{item.Customer}: {item.TotalAmount}");
+}
+// for customer who spends the most
+        int maxAmount = totalPerCustomer.Max(c => c.TotalAmount);
+
+        var spendsMost = totalPerCustomer
+            .Where(c => c.TotalAmount == maxAmount);
+
+        Console.WriteLine("\nCustomer(s) who spent the most:");
+        foreach (var c in spendsMost)
+        {
+            Console.WriteLine($"{c.Customer} - {c.TotalAmount}");
+        }
+    // products which amit buy
+    var amit_products = orders.Where(o=>o.CustomerName == "Amit").Select(o=>o.Product);
+    
+Console.WriteLine("\nProducts purchased by Amit:");
+foreach (var product in amit_products)
+{
+    Console.WriteLine(product);
+}
+ // no. of product each customer buy  
+var productCount = orders
+    .GroupBy(o => o.CustomerName)
+    .Select(g => new { Customer = g.Key, Count = g.Count() });
+
+Console.WriteLine("\nNumber of products purchased by each customer:");
+foreach (var item in productCount)
+{
+    Console.WriteLine($"{item.Customer}: {item.Count}");
+}
+// customers who buys above 10000
+var highValueCustomers = orders
+    .Where(o => o.Amount > 10000)
+    .Select(o => o.CustomerName)
+    .Distinct();
+
+Console.WriteLine("\nCustomers who bought products above 10,000:");
+foreach (var customer in highValueCustomers)
+{
+    Console.WriteLine(customer);
+}
+
+}
+}
