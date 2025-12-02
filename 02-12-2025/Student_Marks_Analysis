@@ -1,0 +1,175 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace StudentMarksAnalysis
+{
+    class Student
+    {
+        private int Roll { get; set; }
+        private string Name { get; set; }
+        private List<int> Marks { get; set; }
+        //  getter and setter 
+        public int roll
+        {
+            get { return Roll; }
+            set { Roll = value; }
+        }
+
+        public string name
+        {
+            get { return Name; }
+            set { Name = value; }
+        }
+
+        public List<int> marks
+        {
+            get { return Marks; }
+            set { Marks = value; }
+        }
+    }
+
+    class Methods
+    {
+
+        protected static List<Student> students;
+
+        protected void ShowAllStudents()
+        {
+            Console.WriteLine("\n--- All Students ---");
+
+            foreach (var s in students)
+            {
+                Console.WriteLine($"Roll: {s.roll}, Name: {s.name}, Total: {s.marks.Sum()}");
+            }
+        }
+
+        protected void ShowTopper()
+        {
+            var topper = students.OrderByDescending(s => s.marks.Sum()).First();
+
+            Console.WriteLine($"\nTopper: {topper.name} | Total Marks: {topper.marks.Sum()}");
+        }
+
+        protected void ShowWeakest()
+        {
+            var weak = students.OrderBy(s => s.marks.Sum()).First();
+            Console.WriteLine($"\nWeakest Student: {weak.name} | Total Marks: {weak.marks.Sum()}");
+        }
+
+        protected void ShowClassAverage()
+        {
+            var average = students.Average(s => s.marks.Sum());
+            Console.WriteLine($"\nClass Average = {average}");
+        }
+        protected void ShowTop3Students()
+        {
+            Console.WriteLine("\nTop 3 Students:");
+            var top3 = students.OrderByDescending(s => s.marks.Sum()).Take(3);
+
+            foreach (var s in top3)
+                Console.WriteLine($"{s.name} -> {s.marks.Sum()}");
+        }
+
+        protected void SortByName()
+        {
+            Console.WriteLine("\nSorted By Name:");
+            var sorted = students.OrderBy(s => s.name).ToList();
+
+            foreach (var s in sorted)
+                Console.WriteLine($"{s.name}");
+        }
+
+        protected void SortByMarksDescending()
+        {
+            Console.WriteLine("\nSorted by Total Marks (Descending):");
+            var sorted = students.OrderByDescending(s => s.marks.Sum());
+
+            foreach (var s in sorted)
+                Console.WriteLine($"{s.name} -> {s.marks.Sum()}");
+        }
+
+        protected void ConvertToDictionary()
+        {
+            Console.WriteLine("\nConverted to Dictionary (Roll => Name):");
+
+            var dict = students.ToDictionary(s => s.roll, s => s.name);
+
+            foreach (var pair in dict)
+                Console.WriteLine($"{pair.Key} = {pair.Value}");
+        }
+
+        protected void FindStudentByRoll()
+        {
+            Console.Write("\nEnter Roll Number: ");
+            int roll = int.Parse(Console.ReadLine());
+
+            var stu = students.FirstOrDefault(s => s.roll == roll);
+
+            if (stu == null)
+                Console.WriteLine("No student found!");
+            else
+                Console.WriteLine($"Name: {stu.name}, Total Marks = {stu.marks.Sum()}");
+        }
+
+        protected void ReverseStudents()
+        {
+            Console.WriteLine("\nReversed List:");
+            var reversed = students.AsEnumerable().Reverse();
+
+            foreach (var s in reversed)
+                Console.WriteLine($"{s.name}");
+        }
+    }
+
+    class Program : Methods
+    {
+        static void Main()
+        {
+            Program p = new Program(); 
+            students = new List<Student>()
+            {
+                new Student {roll=1, name="Pinku", marks=new List<int>{90,90,75,95}},
+                new Student {roll=2, name="Aman", marks=new List<int>{65,72,60,68}},
+                new Student {roll=3, name="Sarthak", marks=new List<int>{95,98,92,90}},
+                new Student {roll=4, name="Aakash", marks=new List<int>{50,45,55,60}},
+                new Student {roll=5, name="Karan", marks=new List<int>{78,85,82,80}},
+            };
+
+            while (true)
+            {
+                Console.WriteLine("\n========== STUDENT MARKS ANALYSIS SYSTEM ==========");
+                Console.WriteLine("1. Show All Students");
+                Console.WriteLine("2. Show Topper (Max Total Marks)");
+                Console.WriteLine("3. Show Weakest Student (Min Total Marks)");
+                Console.WriteLine("4. Show Class Average");
+                Console.WriteLine("5. Show Top 3 Students");
+                Console.WriteLine("6. Sort Students by Name");
+                Console.WriteLine("7. Sort by Total Marks (Descending)");
+                Console.WriteLine("8. Convert Students to Dictionary");
+                Console.WriteLine("9. Find Student by Roll Number");
+                Console.WriteLine("10. Reverse Students List");
+                Console.WriteLine("11. Exit");
+
+                Console.Write("\nEnter Choice: ");
+                int choice = int.Parse(Console.ReadLine());
+
+                switch (choice)
+                {
+                    case 1: p.ShowAllStudents(); break;
+                    case 2: p.ShowTopper(); break;
+                    case 3: p.ShowWeakest(); break;
+                    case 4: p.ShowClassAverage(); break;
+                    case 5: p.ShowTop3Students(); break;
+                    case 6: p.SortByName(); break;
+                    case 7: p.SortByMarksDescending(); break;
+                    case 8: p.ConvertToDictionary(); break;
+                    case 9: p.FindStudentByRoll(); break;
+                    case 10: p.ReverseStudents(); break;                 
+                    case 11: return;
+                    default: Console.WriteLine("Invalid choice!"); break;
+                }
+            }
+        }
+    }
+}
