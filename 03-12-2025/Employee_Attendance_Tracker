@@ -1,0 +1,219 @@
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
+using System.Linq;
+
+namespace EmployeeAttendanceTracker
+{
+    class AttendanceRecord
+    {
+        private string EmployeeID { get; set; }
+        private string Date { get; set; }
+        private string Status { get; set; }
+        public string EmpID { get { return EmployeeID; } set { EmployeeID = value; } }
+        public string date { get { return Date; } set { Date = value; } }
+        public string status { get { return Status; } set { Status = value; } }
+    }
+
+    class Methods
+    {
+        static string filePath = @"C:\Demo project\Employee_attendance_tracker\Attendance\attendance.txt";
+        static string logpath = @"C:\Demo project\Employee_attendance_tracker\Attendance\Log.txt";
+        protected static List<AttendanceRecord> records = new List<AttendanceRecord>();
+
+        protected void LoadRecords()
+        {
+            if (File.Exists(filePath))
+            {
+                string[] lines = File.ReadAllLines(filePath);
+                foreach (var line in lines)
+                {
+                    string[] parts = line.Split(',');
+                    if (parts.Length == 3)
+                    {
+                        records.Add(new AttendanceRecord
+                        {
+                            EmpID = parts[0],
+                            date = parts[1],
+                            status = parts[2]
+                        });
+                    }
+                }
+            }
+        }
+
+        protected void SaveRecords()
+        {
+            var lines = records.Select(r => $"{r.EmpID},{r.date},{r.status}").ToList();
+            File.WriteAllLines(filePath, lines);
+        }
+
+        private void LogAction(string action)
+        {
+            string logEntry = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} - {action}\n";
+            File.AppendAllText(logpath, logEntry);
+        }
+
+        protected void MarkAttendance()
+        {
+            Console.Write("Enter Employee ID: ");
+            string id = Console.ReadLine()?.Trim();
+            if (string.IsNullOrWhiteSpace(id))
+            {
+                Console.WriteLine("Employee ID cannot be empty.");
+                return;
+            }
+
+            Console.Write("Enter Date (yyyy-MM-dd): ");
+            string dateInput = Console.ReadLine()?.Trim();
+            if (!DateTime.TryParseExact(dateInput, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out _))
+            {
+                Console.WriteLine("Invalid date format. Use yyyy-MM-dd.");
+                return;
+            }
+
+            if(records.Any(r =>r.EmpID.Equals(id, StringComparison.OrdinalIgnoreCase) &&r.date == dateInput))
+            {
+                Console.WriteLine("Attendance already exists for this Employee ID on this date.");
+                return;
+            }
+
+
+            Console.Write("Enter Status (Present/Absent/Late): ");
+            string status = Console.ReadLine()?.Trim();
+            if (string.IsNullOrWhiteSpace(status))
+            {
+                Console.WriteLine("Status cannot be empty.");
+                return;
+            }
+
+            records.Add(new AttendanceRecord { EmpID = id, date = dateInput, status = status });
+            Console.WriteLine("Attendance marked successfully!");
+            LogAction($"Marked Attendance - ID: {id}, Date: {dateInput}, Status: {status}");
+        }
+
+        protected void ViewAttendance()
+        {
+            if (!records.Any())
+            {
+                Console.WriteLine("No attendance records found.");
+                return;
+            }
+
+            Console.WriteLine("\nAll Attendance Records:");
+            foreach (var r in records)
+                Console.WriteLine($"ID: {r.EmpID}, Date: {r.date}, Status: {r.status}");
+
+            LogAction("Viewed all attendance records");
+        }
+
+        protected void SearchAttendance()
+        {
+            Console.Write("Enter Employee ID to search: ");
+            string id = Console.ReadLine()?.Trim();
+
+            var results = records.Where(r => r.EmpID.Equals(id, StringComparison.OrdinalIgnoreCase)).ToList();
+            if (!results.Any())
+            {
+                Console.WriteLine("No records found for this Employee ID.");
+                return;
+            }
+
+            foreach (var r in results)
+                Console.WriteLine($"ID: {r.EmpID}, Date: {r.date}, Status: {r.status}");
+
+            LogAction($"Searched attendance for Employee ID: {id}");
+        }
+
+        protected void UpdateAttendance()
+        {
+            Console.Write("Enter Employee ID to update: ");
+            string id = Console.ReadLine()?.Trim();
+
+            Console.Write("Enter Date of record to update (yyyy-MM-dd): ");
+            string dateInput = Console.ReadLine()?.Trim();
+
+            if (!DateTime.TryParseExact(dateInput, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out _))
+            {
+                Console.WriteLine("Invalid date format. Use yyyy-MM-dd.");
+                return;
+            }
+
+            var record = records.FirstOrDefault(r => r.EmpID.Equals(id, StringComparison.OrdinalIgnoreCase) && r.date == dateInput);
+            if (record == null)
+            {
+                Console.WriteLine("Record not found.");
+                return;
+            }
+
+            Console.Write("Enter new Status (Present/Absent/Late): ");
+            string newStatus = Console.ReadLine()?.Trim();
+            if (string.IsNullOrWhiteSpace(newStatus))
+            {
+                Console.WriteLine("Status cannot be empty.");
+                return;
+            }
+
+            record.status = newStatus;
+            Console.WriteLine("Attendance updated successfully!");
+            LogAction($"Updated Attendance - ID: {id}, Date: {dateInput}, New Status: {newStatus}");
+        }
+
+        protected void DeleteAttendance()
+        {
+            Console.Write("Enter Employee ID to delete: ");
+            string id = Console.ReadLine()?.Trim();
+
+            Console.Write("Enter Date of record to delete (yyyy-MM-dd): ");
+            string dateInput = Console.ReadLine()?.Trim();
+
+            var record = records.FirstOrDefault(r => r.EmpID.Equals(id, StringComparison.OrdinalIgnoreCase) && r.date == dateInput);
+            if (record == null)
+            {
+                Console.WriteLine("Record not found.");
+                return;
+            }
+
+            records.Remove(record);
+            Console.WriteLine("Record deleted successfully!");
+            LogAction($"Deleted Attendance - ID: {id}, Date: {dateInput}");
+        }
+    }
+
+    class Program : Methods
+    {
+        static void Main()
+        {
+            Program p = new Program();
+            p.LoadRecords();
+
+            bool exit = false;
+            while (!exit)
+            {
+                Console.WriteLine("\nEmployee Attendance Tracker");
+                Console.WriteLine("1. Mark Attendance");
+                Console.WriteLine("2. View Attendance");
+                Console.WriteLine("3. Search Attendance");
+                Console.WriteLine("4. Update Attendance");
+                Console.WriteLine("5. Delete Attendance Record");
+                Console.WriteLine("6. Exit");
+                Console.Write("Choose an option: ");
+
+                string choice = Console.ReadLine();
+                switch (choice)
+                {
+                    case "1": p.MarkAttendance(); break;
+                    case "2": p.ViewAttendance(); break;
+                    case "3": p.SearchAttendance(); break;
+                    case "4": p.UpdateAttendance(); break;
+                    case "5": p.DeleteAttendance(); break;
+                    case "6": exit = true; break;
+                    default: Console.WriteLine("Invalid option! Try again."); break;
+                }
+            }
+
+            p.SaveRecords();
+        }
+    }
+}
