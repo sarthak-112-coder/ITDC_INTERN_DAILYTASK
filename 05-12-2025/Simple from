@@ -1,0 +1,68 @@
+@{
+    ViewData["Title"] = "Home Page";
+}
+
+@using (Html.BeginForm("Index", "Home"))
+{
+    <div class="form-group">
+        @Html.Label("UserName : ")
+        @Html.TextBox("fullName", "Sarthak", new { @class = "form-control" })
+    </div>
+
+    <br />
+
+    <div class="form-group">
+        @Html.Label("Password : ")
+        @Html.Password("UserPassword", null, new { @class = "form-control", id = "UserPassword" })
+        <input type="checkbox" onclick="togglePassword()"> Show Password
+    </div>
+
+    <br />
+
+    <div class="form-group">
+        @Html.Label("Please Select Your Gender : ")
+        <br />
+        @Html.RadioButton("Gender", "Male") @Html.Label("Male") &nbsp;
+        @Html.RadioButton("Gender", "Female") @Html.Label("Female")
+    </div>
+
+    <br />
+
+    <div class="form-group">
+        @Html.Label("Country")
+        @Html.DropDownList(
+        "Country List",
+        new SelectList(new[] { "Pakistan", "India", "Sri Lanka", "Bangladesh" }),
+        "Choose From Below",
+        new { @class = "form-control" }
+        )
+</div>
+
+<br />
+
+<div class="form-group">
+    @Html.Label("Feedback : ")
+    @Html.TextArea("Feedback Area", "Please Give Feedback Here", 5, 20, new { @class = "form-control" })
+</div>
+
+<br />
+
+<div class="form-group">
+    @Html.CheckBox("AcceptTerms", true)
+    @Html.Label("I Accept the terms and conditions!!!")
+</div>
+
+@Html.Hidden("Hidden")
+
+<br />
+
+<input type="submit" class="btn btn-primary" value="Submit" />
+}
+
+<script>
+    function togglePassword() {
+        var p = document.getElementById("UserPassword");
+        p.type = (p.type === "password") ? "text" : "password";
+    }
+</script>
+
